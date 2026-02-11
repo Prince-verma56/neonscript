@@ -1,0 +1,53 @@
+// localhost:3000/demo
+
+"use client"
+
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+
+
+export default function DemoPage() {
+
+
+
+    const [loading, setLoading] = useState(false)
+    const [loadingBackground, setLoadingBackground] = useState(false)
+
+    const handleBlocking = async () => {
+        setLoading(true)
+        const response = await fetch("/api/demo/blocking", { method: "POST" });
+        const data = await response.json();
+        console.log(data);
+        setLoading(false)
+    }
+
+
+
+
+    const handleBackground = async () => {
+        setLoading(true)
+        const response = await fetch("/api/demo/background", { method: "POST" });
+        const data = await response.json();
+        console.log(data);
+        setLoading(false)
+    }
+
+
+    return (
+        <div className="p-8 ">
+            <h1>demo</h1>
+            <Button
+                disabled={loading}
+                variant={"outline"} onClick={handleBlocking}>
+                {loading ? "Loading..." : "Blocking"}
+            </Button>
+
+
+            <Button
+                disabled={loadingBackground}
+                variant={"outline"} onClick={handleBackground}>
+                {loadingBackground ? "Loading..." : "Background"}
+            </Button>
+        </div>
+    )
+}
