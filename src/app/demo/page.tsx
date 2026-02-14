@@ -5,10 +5,15 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
+import { useAuth } from "@clerk/nextjs";
+
+import * as Sentry from "@sentry/nextjs";
 
 export default function DemoPage() {
 
 
+
+  const userId = useAuth();
 
     const [loading, setLoading] = useState(false)
     const [loadingBackground, setLoadingBackground] = useState(false)
@@ -32,6 +37,16 @@ export default function DemoPage() {
         setLoading(false)
     }
 
+
+
+    const handleClientError = ()=>{
+        Sentry.logger.info("User Attempting to click on client function ", {userId})
+        throw new Error("Client Error: Something went wrong in the browser.!")
+    }
+
+    const handleApiError = async () => {
+        await fetch("/api/demo/error", { method: "POST" });
+    }
 
     return (
         <div className="p-8 ">
