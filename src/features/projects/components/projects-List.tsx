@@ -4,7 +4,7 @@ import { Kbd } from "@/components/ui/kbd";
 
 import { formatDistanceToNow } from "date-fns";
 
-import { Doc } from "../../../../../../convex/_generated/dataModel";
+import { Doc } from "../../../../convex/_generated/dataModel";
 import Link from "next/link";
 import { AlertCircleIcon, ArrowRightIcon, GlobeIcon, Loader2Icon } from "lucide-react";
 import { FaGithub } from "react-icons/fa";

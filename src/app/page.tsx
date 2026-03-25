@@ -1,6 +1,6 @@
 "use client";
 
-import { ProjectsView } from "@/features/auth/components/projects/components/projects-view";
+import { ProjectsView } from "@/features/projects/components/projects-view";
 
 const Home = () => {
   return (

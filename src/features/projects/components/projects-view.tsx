@@ -13,7 +13,7 @@ import { SparkleIcon } from "lucide-react";
 import { Kbd } from "@/components/ui/kbd";
 import { ProjectsList } from "./projects-List"
 
-import { useCreatedProject } from "./hooks/use-projects"
+import { useCreateProject } from "./hooks/use-projects";
 import { useEffect, useState } from "react";
 import { ProjectsCommandDialog } from "./projects-command-dialog";
 
@@ -26,7 +26,7 @@ export const ProjectsView = () => {
 
 
 
-    const createProject = useCreatedProject();
+    const createProject = useCreateProject();
 
     const [commandDialogOpen, setCommandDialogOpen] = useState(false)
 
@@ -52,8 +52,8 @@ export const ProjectsView = () => {
                 <div className="w-full max-w-sm mx-auto flex flex-col gap-4 items-center">
 
                     <div className="flex justify-center gap-4 w-full items-center ">
-                        <div className="flex items-center gap-2 w-full group/logo">
-                            <Image src="/vercel.svg" alt="NeonScript" width={24} height={24} />
+                        <div className="flex items-center gap-5 w-full group/logo">
+                            <Image src="/logo.svg" alt="NeonScript" width={54} height={54} />
                             <h1 className={cn(
                                 "text-4xl md:text-5xl font-semibold ",
                                 font.className)}>
