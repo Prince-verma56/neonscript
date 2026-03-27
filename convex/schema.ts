@@ -25,13 +25,22 @@ export default defineSchema({
     exportRepoUrl: v.optional(v.string()),
   }).index("by_owner", ["ownerId"]),
 
-  // tasks: defineTable({
-  //   text: v.string(),
-  //   isCompleted: v.boolean()
-  // })
+  files: defineTable({
+    projectId: v.id("projects"),
+    parentId: v.optional(v.id("files")),
+    name: v.string(),
+    type: v.union(v.literal("file"), v.literal("folder")),
+    content: v.optional(v.string()),
+    storageId: v.optional(v.id("_storage")),
+    updatedAt: v.optional(v.number()),
 
+  
+  })
 
-
+  .index("by_project",["projectId"])
+  .index("by_parent",["parentId"])
+  .index("by_project_parent",["projectId", "parentId"])
+ 
 });
 
 

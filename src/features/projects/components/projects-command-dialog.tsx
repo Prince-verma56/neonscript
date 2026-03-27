@@ -14,7 +14,7 @@ import {
     CommandList,
 } from "@/components/ui/command";
 
-import { useProjects } from "./hooks/use-projects";
+import { useProjects } from "../hooks/use-projects";
 import { Doc } from "../../../../convex/_generated/dataModel";
 
 interface ProjectsCommandDialogProps {
