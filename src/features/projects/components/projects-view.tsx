@@ -13,7 +13,7 @@ import { SparkleIcon } from "lucide-react";
 import { Kbd } from "@/components/ui/kbd";
 import { ProjectsList } from "./projects-List"
 
-import { useCreateProject } from "./hooks/use-projects";
+import { useCreateProject } from "../hooks/use-projects";
 import { useEffect, useState } from "react";
 import { ProjectsCommandDialog } from "./projects-command-dialog";
 

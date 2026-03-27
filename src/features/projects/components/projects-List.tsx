@@ -1,5 +1,5 @@
 import { Spinner } from "@/components/ui/spinner";
-import { useProjectsPartial } from "./hooks/use-projects";
+import { useProjectsPartial } from "../hooks/use-projects";
 import { Kbd } from "@/components/ui/kbd";
 
 import { formatDistanceToNow } from "date-fns";
