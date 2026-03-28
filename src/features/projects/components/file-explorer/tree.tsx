@@ -45,6 +45,8 @@ export const Tree = ({
   const createFile = useCreateFile();
   const createFolder = useCreateFolder();
 
+  
+
   const { openFile, closeTab, activeTabId } = useEditor(projectId);
 
   const folderContents = useFolderContents({

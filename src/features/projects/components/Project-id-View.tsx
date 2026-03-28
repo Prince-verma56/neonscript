@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 
 import { FileExplorer } from "./file-explorer";
 import { Id } from "../../../../convex/_generated/dataModel";
+import { EditorView } from "@/features/editor/components/editor-view";
 // import { PreviewView } from "./preview-view";
 // import { ExportPopover } from "./export-popover";
 
@@ -79,8 +80,8 @@ export const ProjectIdView = ({
               <FileExplorer projectId={projectId} />
             </Allotment.Pane>
             <Allotment.Pane>
-              {/* <EditorView projectId={projectId} /> */}
-              <h1>Editor View</h1>
+              <EditorView projectId={projectId} />
+             
             </Allotment.Pane>
           </Allotment>
         </div>
