@@ -4,13 +4,16 @@ import { EditorView, keymap, lineNumbers, highlightActiveLineGutter } from "@cod
 import { oneDark } from "@codemirror/theme-one-dark";
 import { indentWithTab } from "@codemirror/commands";
 import { indentationMarkers } from "@replit/codemirror-indentation-markers";
-
+import { suggestion } from "../extensions/suggesions";
 
 
 import { minimap } from "../extensions/minimap";
 import { customTheme } from "../extensions/theme";
 import { getLanguageExtension } from "../extensions/language-extension";
 import { customSetup } from "../extensions/custom-setup";
+import { quickEdit } from "../extensions/quick-edit";
+import { selectionTooltip } from "../extensions/selection-tooltip";
+
 
 interface Props {
   fileName: string;
@@ -45,13 +48,16 @@ export const CodeEditor = ({
         languageExtension,
         minimap(),
         indentationMarkers(),
+        suggestion(fileName),
+        selectionTooltip(fileName),
+        quickEdit(fileName),
         keymap.of([indentWithTab]),
 
-        // EditorView.updateListener.of((update) => {
-        //   if (update.docChanged) {
-        //     onChange(update.state.doc.toString());
-        //   }
-        // }),
+        EditorView.updateListener.of((update) => {
+          if (update.docChanged) {
+            onChange(update.state.doc.toString());
+          }
+        }),
       ],
 
     });
