@@ -6,7 +6,7 @@ import { convex } from "@/lib/convex-client";
 import { api } from "../../../../convex/_generated/api";
 import { Id } from "../../../../convex/_generated/dataModel";
 
-type Framework = "react_vite" | "nextjs";
+type Framework = "react_vite" | "nextjs" | "webcontainer_static";
 
 interface PlanAndCreateAppParams {
   internalKey: string;
@@ -58,6 +58,15 @@ const nextContentSchema = z.object({
   notFoundJsx: z.string().min(1),
 });
 
+const staticContentSchema = z.object({
+  summary: z.string().min(1),
+  appTitle: z.string().min(1),
+  appDescription: z.string().min(1),
+  html: z.string().min(1),
+  css: z.string().min(1),
+  js: z.string().min(1),
+});
+
 const normalizePath = (value: string) =>
   value
     .replace(/\\/g, "/")
@@ -76,6 +85,14 @@ const sanitizeRootFolder = (value: string) =>
 
 const detectFramework = (message: string): Framework => {
   const lower = message.toLowerCase();
+  if (
+    /\bwebcontainer\b/.test(lower) ||
+    (/\bhtml\b/.test(lower) && /\bpreview\b/.test(lower)) ||
+    /\bstatic\s+(app|site|website|project)\b/.test(lower) ||
+    /\bminimum\b/.test(lower)
+  ) {
+    return "webcontainer_static";
+  }
   if (/\bnext(?:\.js|js)?\b/.test(lower)) {
     return "nextjs";
   }
@@ -83,10 +100,9 @@ const detectFramework = (message: string): Framework => {
 };
 
 const inferRootFolder = (message: string, framework: Framework) => {
-  const named = message.match(/\b(?:called|named)\s+["'`]?([a-zA-Z0-9_-]{2,})["'`]?/i);
-  if (named?.[1]) return sanitizeRootFolder(named[1]);
-
-  return framework === "nextjs" ? "my-next-app" : "my-app";
+  void message;
+  void framework;
+  return "";
 };
 
 const resolveFullPathMap = (items: ProjectItem[]) => {
@@ -148,6 +164,21 @@ const buildNextPrompt = (message: string) =>
     `User request: ${message}`,
   ].join("\n");
 
+const buildStaticPrompt = (message: string) =>
+  [
+    "Generate content for a minimal static web app runnable in WebContainer.",
+    "Strict file set: index.html, styles.css, script.js",
+    "Rules:",
+    "- Return JSON only matching schema.",
+    "- No markdown fences.",
+    "- HTML must reference styles.css and script.js.",
+    "- Keep it lightweight and preview-ready.",
+    `User request: ${message}`,
+  ].join("\n");
+
+const joinRootPath = (rootFolder: string, path: string) =>
+  rootFolder ? `${rootFolder}/${path}` : path;
+
 const buildReactBlueprint = ({
   rootFolder,
   content,
@@ -160,17 +191,17 @@ const buildReactBlueprint = ({
     "my-app";
 
   return [
-    { path: `${rootFolder}/public/vite.svg`, content: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 410 404"><path fill="#41D1FF" d="M399.641 59.524L215.643 388.545a17.97 17.97 0 01-31.286.047L10.359 59.524A18 18 0 0128.49 33.05h352.98a18 18 0 0118.171 26.474z"/></svg>` },
-    { path: `${rootFolder}/src/assets/react.svg`, content: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-11.5 -10.23174 23 20.46348"><circle cx="0" cy="0" r="2.05" fill="#61dafb"/><g stroke="#61dafb" stroke-width="1" fill="none"><ellipse rx="11" ry="4.2"/><ellipse rx="11" ry="4.2" transform="rotate(60)"/><ellipse rx="11" ry="4.2" transform="rotate(120)"/></g></svg>` },
-    { path: `${rootFolder}/src/App.jsx`, content: content.appJsx },
-    { path: `${rootFolder}/src/App.css`, content: content.appCss },
-    { path: `${rootFolder}/src/main.jsx`, content: `import React from "react";\nimport ReactDOM from "react-dom/client";\nimport App from "./App.jsx";\nimport "./index.css";\n\nReactDOM.createRoot(document.getElementById("root")).render(\n  <React.StrictMode>\n    <App />\n  </React.StrictMode>\n);` },
-    { path: `${rootFolder}/src/index.css`, content: content.indexCss },
-    { path: `${rootFolder}/.gitignore`, content: `node_modules\ndist\n.DS_Store\n.vscode/*\n!.vscode/extensions.json` },
-    { path: `${rootFolder}/index.html`, content: `<!doctype html>\n<html lang="en">\n  <head>\n    <meta charset="UTF-8" />\n    <meta name="viewport" content="width=device-width, initial-scale=1.0" />\n    <title>${content.appTitle}</title>\n  </head>\n  <body>\n    <div id="root"></div>\n    <script type="module" src="/src/main.jsx"></script>\n  </body>\n</html>` },
-    { path: `${rootFolder}/package.json`, content: `{\n  "name": "${packageName}",\n  "private": true,\n  "version": "0.0.0",\n  "type": "module",\n  "scripts": {\n    "dev": "vite",\n    "build": "vite build",\n    "preview": "vite preview"\n  },\n  "dependencies": {\n    "react": "^19.2.0",\n    "react-dom": "^19.2.0"\n  },\n  "devDependencies": {\n    "@vitejs/plugin-react": "^5.0.0",\n    "vite": "^7.0.0"\n  }\n}` },
-    { path: `${rootFolder}/vite.config.js`, content: `import { defineConfig } from "vite";\nimport react from "@vitejs/plugin-react";\n\nexport default defineConfig({\n  plugins: [react()],\n});` },
-    { path: `${rootFolder}/README.md`, content: `# ${content.appTitle}\n\n${content.appDescription}\n\n## Run\n\n\`\`\`bash\ncd ${rootFolder}\nnpm install\nnpm run dev\n\`\`\`\n` },
+    { path: joinRootPath(rootFolder, "public/vite.svg"), content: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 410 404"><path fill="#41D1FF" d="M399.641 59.524L215.643 388.545a17.97 17.97 0 01-31.286.047L10.359 59.524A18 18 0 0128.49 33.05h352.98a18 18 0 0118.171 26.474z"/></svg>` },
+    { path: joinRootPath(rootFolder, "src/assets/react.svg"), content: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-11.5 -10.23174 23 20.46348"><circle cx="0" cy="0" r="2.05" fill="#61dafb"/><g stroke="#61dafb" stroke-width="1" fill="none"><ellipse rx="11" ry="4.2"/><ellipse rx="11" ry="4.2" transform="rotate(60)"/><ellipse rx="11" ry="4.2" transform="rotate(120)"/></g></svg>` },
+    { path: joinRootPath(rootFolder, "src/App.jsx"), content: content.appJsx },
+    { path: joinRootPath(rootFolder, "src/App.css"), content: content.appCss },
+    { path: joinRootPath(rootFolder, "src/main.jsx"), content: `import React from "react";\nimport ReactDOM from "react-dom/client";\nimport App from "./App.jsx";\nimport "./index.css";\n\nReactDOM.createRoot(document.getElementById("root")).render(\n  <React.StrictMode>\n    <App />\n  </React.StrictMode>\n);` },
+    { path: joinRootPath(rootFolder, "src/index.css"), content: content.indexCss },
+    { path: joinRootPath(rootFolder, ".gitignore"), content: `node_modules\ndist\n.DS_Store\n.vscode/*\n!.vscode/extensions.json` },
+    { path: joinRootPath(rootFolder, "index.html"), content: `<!doctype html>\n<html lang="en">\n  <head>\n    <meta charset="UTF-8" />\n    <meta name="viewport" content="width=device-width, initial-scale=1.0" />\n    <title>${content.appTitle}</title>\n  </head>\n  <body>\n    <div id="root"></div>\n    <script type="module" src="/src/main.jsx"></script>\n  </body>\n</html>` },
+    { path: joinRootPath(rootFolder, "package.json"), content: `{\n  "name": "${packageName}",\n  "private": true,\n  "version": "0.0.0",\n  "type": "module",\n  "scripts": {\n    "dev": "vite",\n    "build": "vite build",\n    "preview": "vite preview"\n  },\n  "dependencies": {\n    "react": "^19.2.0",\n    "react-dom": "^19.2.0"\n  },\n  "devDependencies": {\n    "@vitejs/plugin-react": "^5.0.0",\n    "vite": "^7.0.0"\n  }\n}` },
+    { path: joinRootPath(rootFolder, "vite.config.js"), content: `import { defineConfig } from "vite";\nimport react from "@vitejs/plugin-react";\n\nexport default defineConfig({\n  plugins: [react()],\n});` },
+    { path: joinRootPath(rootFolder, "README.md"), content: `# ${content.appTitle}\n\n${content.appDescription}\n\n## Run\n\n\`\`\`bash\nnpm install\nnpm run dev\n\`\`\`\n` },
   ];
 };
 
@@ -186,19 +217,49 @@ const buildNextBlueprint = ({
     "my-next-app";
 
   return [
-    { path: `${rootFolder}/public/favicon.ico`, content: "" },
-    { path: `${rootFolder}/public/images/.gitkeep`, content: "" },
-    { path: `${rootFolder}/src/app/layout.jsx`, content: `import "./globals.css";\n\nexport const metadata = {\n  title: "${content.appTitle}",\n  description: "${content.appDescription}",\n};\n\nexport default function RootLayout({ children }) {\n  return (\n    <html lang="en">\n      <body>{children}</body>\n    </html>\n  );\n}` },
-    { path: `${rootFolder}/src/app/page.jsx`, content: content.pageJsx },
-    { path: `${rootFolder}/src/app/globals.css`, content: content.globalsCss },
-    { path: `${rootFolder}/src/app/loading.jsx`, content: content.loadingJsx },
-    { path: `${rootFolder}/src/app/error.jsx`, content: content.errorJsx },
-    { path: `${rootFolder}/src/app/not-found.jsx`, content: content.notFoundJsx },
-    { path: `${rootFolder}/.env.local`, content: `# Add local environment variables here\n` },
-    { path: `${rootFolder}/.gitignore`, content: `node_modules\n.next\nout\ndist\n.env*.local\n.DS_Store\n.vscode/*\n!.vscode/extensions.json` },
-    { path: `${rootFolder}/next.config.js`, content: `/** @type {import('next').NextConfig} */\nconst nextConfig = {};\n\nmodule.exports = nextConfig;` },
-    { path: `${rootFolder}/package.json`, content: `{\n  "name": "${packageName}",\n  "private": true,\n  "version": "0.1.0",\n  "scripts": {\n    "dev": "next dev",\n    "build": "next build",\n    "start": "next start",\n    "lint": "next lint"\n  },\n  "dependencies": {\n    "next": "^16.0.0",\n    "react": "^19.2.0",\n    "react-dom": "^19.2.0"\n  }\n}` },
-    { path: `${rootFolder}/README.md`, content: `# ${content.appTitle}\n\n${content.appDescription}\n\n## Run\n\n\`\`\`bash\ncd ${rootFolder}\nnpm install\nnpm run dev\n\`\`\`\n` },
+    { path: joinRootPath(rootFolder, "public/favicon.ico"), content: "" },
+    { path: joinRootPath(rootFolder, "public/images/.gitkeep"), content: "" },
+    { path: joinRootPath(rootFolder, "src/app/layout.jsx"), content: `import "./globals.css";\n\nexport const metadata = {\n  title: "${content.appTitle}",\n  description: "${content.appDescription}",\n};\n\nexport default function RootLayout({ children }) {\n  return (\n    <html lang="en">\n      <body>{children}</body>\n    </html>\n  );\n}` },
+    { path: joinRootPath(rootFolder, "src/app/page.jsx"), content: content.pageJsx },
+    { path: joinRootPath(rootFolder, "src/app/globals.css"), content: content.globalsCss },
+    { path: joinRootPath(rootFolder, "src/app/loading.jsx"), content: content.loadingJsx },
+    { path: joinRootPath(rootFolder, "src/app/error.jsx"), content: content.errorJsx },
+    { path: joinRootPath(rootFolder, "src/app/not-found.jsx"), content: content.notFoundJsx },
+    { path: joinRootPath(rootFolder, ".env.local"), content: `# Add local environment variables here\n` },
+    { path: joinRootPath(rootFolder, ".gitignore"), content: `node_modules\n.next\nout\ndist\n.env*.local\n.DS_Store\n.vscode/*\n!.vscode/extensions.json` },
+    { path: joinRootPath(rootFolder, "next.config.js"), content: `/** @type {import('next').NextConfig} */\nconst nextConfig = {};\n\nmodule.exports = nextConfig;` },
+    { path: joinRootPath(rootFolder, "package.json"), content: `{\n  "name": "${packageName}",\n  "private": true,\n  "version": "0.1.0",\n  "scripts": {\n    "dev": "next dev",\n    "build": "next build",\n    "start": "next start",\n    "lint": "next lint"\n  },\n  "dependencies": {\n    "next": "^16.0.0",\n    "react": "^19.2.0",\n    "react-dom": "^19.2.0"\n  }\n}` },
+    { path: joinRootPath(rootFolder, "README.md"), content: `# ${content.appTitle}\n\n${content.appDescription}\n\n## Run\n\n\`\`\`bash\nnpm install\nnpm run dev\n\`\`\`\n` },
+  ];
+};
+
+const buildStaticBlueprint = ({
+  rootFolder,
+  content,
+}: {
+  rootFolder: string;
+  content: z.infer<typeof staticContentSchema>;
+}): BlueprintFile[] => {
+  const packageName =
+    rootFolder.replace(/[^a-z0-9-_]/g, "-").replace(/^-+|-+$/g, "") ||
+    "minimal-webcontainer-app";
+
+  return [
+    { path: joinRootPath(rootFolder, "index.html"), content: content.html },
+    { path: joinRootPath(rootFolder, "styles.css"), content: content.css },
+    { path: joinRootPath(rootFolder, "script.js"), content: content.js },
+    {
+      path: joinRootPath(rootFolder, "package.json"),
+      content: `{\n  "name": "${packageName}",\n  "version": "1.0.0",\n  "description": "${content.appDescription.replace(/"/g, '\\"')}",\n  "main": "script.js",\n  "scripts": {\n    "dev": "serve -s . -l 3000",\n    "start": "serve -s . -l 3000"\n  },\n  "devDependencies": {\n    "serve": "^14.2.0"\n  }\n}`,
+    },
+    {
+      path: joinRootPath(rootFolder, "README.md"),
+      content: `# ${content.appTitle}\n\n${content.appDescription}\n\n## Run\n\n\`\`\`bash\nnpm install\nnpm run dev\n\`\`\`\n`,
+    },
+    {
+      path: joinRootPath(rootFolder, ".gitignore"),
+      content: `node_modules\ndist\n.DS_Store`,
+    },
   ];
 };
 
@@ -241,10 +302,6 @@ export const planAndCreateApp = async ({
     preferredRootFolder || inferRootFolder(message, framework)
   );
 
-  if (!rootFolder) {
-    throw new Error("Unable to determine app folder name.");
-  }
-
   const allItems = await convex.query(api.system.getProjectFiles, {
     internalKey,
     projectId,
@@ -272,8 +329,8 @@ export const planAndCreateApp = async ({
     });
     summary = object.summary.trim();
     blueprintFiles = buildReactBlueprint({ rootFolder, content: object });
-    requiredFolders = defaultReactFolders.map((folder) => `${rootFolder}/${folder}`);
-  } else {
+    requiredFolders = defaultReactFolders.map((folder) => joinRootPath(rootFolder, folder));
+  } else if (framework === "nextjs") {
     const { object } = await generateObject({
       model: ollama(model),
       schema: nextContentSchema,
@@ -281,7 +338,16 @@ export const planAndCreateApp = async ({
     });
     summary = object.summary.trim();
     blueprintFiles = buildNextBlueprint({ rootFolder, content: object });
-    requiredFolders = defaultNextFolders.map((folder) => `${rootFolder}/${folder}`);
+    requiredFolders = defaultNextFolders.map((folder) => joinRootPath(rootFolder, folder));
+  } else {
+    const { object } = await generateObject({
+      model: ollama(model),
+      schema: staticContentSchema,
+      prompt: buildStaticPrompt(message),
+    });
+    summary = object.summary.trim();
+    blueprintFiles = buildStaticBlueprint({ rootFolder, content: object });
+    requiredFolders = [];
   }
 
   const folderCache = new Map<string, Id<"files">>(foldersByPath);
@@ -363,10 +429,11 @@ export const planAndCreateApp = async ({
     }
   }
 
-  const runInstructions =
-    framework === "react_vite"
-      ? [`cd ${rootFolder}`, "npm install", "npm run dev"]
-      : [`cd ${rootFolder}`, "npm install", "npm run dev"];
+  const runInstructions = [
+    ...(rootFolder ? [`cd ${rootFolder}`] : []),
+    "npm install",
+    "npm run dev",
+  ];
 
   return {
     framework,

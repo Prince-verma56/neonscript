@@ -20,60 +20,6 @@ interface ExecutorResult {
   response: string;
 }
 
-const APP_NAME_STOPWORDS = new Set([
-  "react",
-  "vite",
-  "next",
-  "nextjs",
-  "todo",
-  "app",
-  "project",
-  "website",
-  "simple",
-  "basic",
-  "new",
-]);
-
-const sanitizeAppName = (value: string): string | null => {
-  const cleaned = value.trim().replace(/["'`.,!?]+$/g, "");
-  if (!cleaned) return null;
-  if (!/^[a-zA-Z0-9_-]{2,}$/.test(cleaned)) return null;
-  if (APP_NAME_STOPWORDS.has(cleaned.toLowerCase())) return null;
-  return cleaned;
-};
-
-const extractAppNames = (message: string): string[] => {
-  const names = new Set<string>();
-
-  const quoted = extractQuotedValues(message);
-  for (const item of quoted) {
-    const candidate = sanitizeAppName(item);
-    if (candidate) {
-      names.add(candidate);
-    }
-  }
-
-  const calledOrNamed =
-    /\b(?:called|named)\s+["'`]?([a-zA-Z0-9_-]{2,})["'`]?/gi;
-  for (const match of message.matchAll(calledOrNamed)) {
-    const candidate = sanitizeAppName(match[1] ?? "");
-    if (candidate) {
-      names.add(candidate);
-    }
-  }
-
-  const leadingName =
-    /\b(?:create|make|build|scaffold|setup|generate)\s+["'`]?([a-zA-Z0-9_-]{2,})["'`]?\s+(?:app|project|website)\b/gi;
-  for (const match of message.matchAll(leadingName)) {
-    const candidate = sanitizeAppName(match[1] ?? "");
-    if (candidate) {
-      names.add(candidate);
-    }
-  }
-
-  return [...names];
-};
-
 const resolveFileByName = (
   files: Array<{
     _id: Id<"files">;
@@ -203,22 +149,13 @@ export const runDeterministicExecutor = async ({
       parentId = parent._id;
     }
 
-    const inferredFromPhrase = extractAppNames(message);
-    const folderTargets = [...new Set([...route.folderNames, ...inferredFromPhrase])].filter(Boolean);
-
-    if (folderTargets.length === 0) {
-      return {
-        handled: true,
-        response:
-          "Please provide the app folder name, for example: \"create a Next.js app named myapp\".",
-      };
-    }
+    const targets: Array<string | undefined> = [undefined];
 
     const summaries: string[] = [];
     const failures: string[] = [];
     const runGuides: string[] = [];
 
-    for (const folderName of folderTargets) {
+    for (const folderName of targets) {
       try {
         const result = await planAndCreateApp({
           internalKey,
@@ -229,14 +166,14 @@ export const runDeterministicExecutor = async ({
         });
 
         summaries.push(
-          `${result.rootFolder} (${result.framework}): ${result.createdFolders} folder(s), ${result.createdFiles} file(s), ${result.updatedFiles} updated\n${result.summary}`
+          `${result.rootFolder || "(project root)"} (${result.framework}): ${result.createdFolders} folder(s), ${result.createdFiles} file(s), ${result.updatedFiles} updated\n${result.summary}`
         );
         runGuides.push(
-          `${result.rootFolder}:\n${result.runInstructions.map((cmd) => `- ${cmd}`).join("\n")}`
+          `${result.rootFolder || "(project root)"}:\n${result.runInstructions.map((cmd) => `- ${cmd}`).join("\n")}`
         );
       } catch (error) {
         failures.push(
-          `${folderName} (${error instanceof Error ? error.message : "Unknown error"})`
+          `${folderName ?? "(project root)"} (${error instanceof Error ? error.message : "Unknown error"})`
         );
       }
     }
