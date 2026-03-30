@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 
+import "allotment/dist/style.css"
+
 import { Providers } from "@/components/providers";
 import { Toaster } from "sonner";
 
