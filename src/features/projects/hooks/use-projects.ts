@@ -80,6 +80,6 @@ export const useRenameProject = () => {
   )
 };
 
-// export const useUpdateProjectSettings = () => {
-//   return useMutation(api.projects.update);
-// };
+export const useUpdateProjectSettings = () => {
+  return useMutation(api.projects.updateSettings);
+};

@@ -40,6 +40,10 @@ const APP_NAME_STOPWORDS = new Set([
   "vite",
   "next",
   "nextjs",
+  "webcontainer",
+  "preview",
+  "static",
+  "html",
   "todo",
   "app",
   "project",
@@ -91,7 +95,14 @@ const heuristicRoute = (message: string): IntentRoute => {
   const isCreateApp =
     /\b(create|make|add|generate|scaffold|setup|build|start)\b/.test(lower) &&
     /\b(app|project|website)\b/.test(lower) &&
-    (/\breact\b/.test(lower) || /\bvite\b/.test(lower) || /\bnext(?:\.js|js)?\b/.test(lower));
+    (
+      /\breact\b/.test(lower) ||
+      /\bvite\b/.test(lower) ||
+      /\bnext(?:\.js|js)?\b/.test(lower) ||
+      /\bwebcontainer\b/.test(lower) ||
+      /\bstatic\b/.test(lower) ||
+      /\bhtml\b/.test(lower)
+    );
   const isCreateFile =
     /\b(create|make|add|generate)\b/.test(lower) &&
     /\b(file|files)\b/.test(lower);
@@ -263,7 +274,7 @@ export const routeIntent = async ({
         "Classify this coding-assistant message into one action.",
         "Return strict JSON that matches schema.",
         "Prefer: create_app, create_file, create_folder, update_file, read_file, list_files, delete_file, rename_file, unknown.",
-        "If user asks to create/build/scaffold an app/project (React, Vite, Next.js), classify as create_app.",
+        "If user asks to create/build/scaffold an app/project (React, Vite, Next.js, static HTML, WebContainer preview app), classify as create_app.",
         "If user asks to delete/remove a file/folder, classify as delete_file.",
         "If user asks to rename a file/folder, classify as rename_file.",
         "Important: If user says create/make function/program INSIDE an existing file (e.g. in test.py), classify as update_file, not create_file.",
