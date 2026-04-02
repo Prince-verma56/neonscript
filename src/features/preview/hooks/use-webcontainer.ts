@@ -11,7 +11,7 @@ import { useFilesWithStorageUrls } from "@/features/projects/hooks/use-files";
 import { Id } from "../../../../convex/_generated/dataModel";
 
 type PreviewFile = Doc<"files"> & {
-  storageUrl?: string | null;
+  storageUrl: string | null;
 };
 
 type WebContainerState = {

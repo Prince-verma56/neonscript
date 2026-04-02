@@ -228,7 +228,7 @@ export const processMessage = inngest.createFunction(
         baseUrl: ollamaBaseUrl,
         apiKey: ollamaApiKey,
         defaultParameters: { temperature: 0.3 },
-      }),
+      }) as unknown as NonNullable<Parameters<typeof createAgent>[0]["model"]>,
       tools: [
         createListFilesTool({ internalKey, projectId }),
         createReadFilesTool({ internalKey }),
