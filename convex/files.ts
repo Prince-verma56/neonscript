@@ -26,6 +26,39 @@ export const getFiles = query({
   },
 });
 
+export const getFilesWithStorageUrls = query({
+  args: { projectId: v.id("projects") },
+  handler: async (ctx, args) => {
+    const identity = await verifyAuth(ctx);
+
+    const project = await ctx.db.get("projects", args.projectId);
+
+    if (!project) {
+      throw new Error("Project not found");
+    }
+
+    if (project.ownerId !== identity.subject) {
+      throw new Error("Unauthorized to access this project");
+    }
+
+    const files = await ctx.db
+      .query("files")
+      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+      .collect();
+
+    return await Promise.all(
+      files.map(async (file) => {
+        if (!file.storageId) {
+          return { ...file, storageUrl: null };
+        }
+
+        const storageUrl = await ctx.storage.getUrl(file.storageId);
+        return { ...file, storageUrl };
+      })
+    );
+  },
+});
+
 export const getFile = query({
   args: { id: v.id("files") },
   handler: async (ctx, args) => {

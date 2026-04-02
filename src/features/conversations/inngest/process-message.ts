@@ -7,10 +7,8 @@ import { NonRetriableError } from "inngest";
 
 import { api } from "../../../../convex/_generated/api";
 import { Id } from "../../../../convex/_generated/dataModel";
-import { DEFAULT_CONVERSATION_TITLE } from "../constants";
 import {
   CODING_AGENT_SYSTEM_PROMPT,
-  TITLE_GENERATOR_SYSTEM_PROMPT,
 } from "./constants";
 import { routeIntent } from "./intent-router";
 import { runDeterministicExecutor } from "./executor";
@@ -130,7 +128,6 @@ export const processMessage = inngest.createFunction(
       process.env.CONVERSATION_MODEL ??
       process.env.SUGGESTION_MODEL ??
       "qwen2.5-coder:7b";
-    const titleModel = process.env.TITLE_MODEL ?? conversationModel;
 
     await step.sleep("wait-for-db-sync", "1s");
 
@@ -155,43 +152,42 @@ export const processMessage = inngest.createFunction(
 
     const historyText = getHistoryText(recentMessages, messageId);
 
-    const shouldGenerateTitle =
-      conversation.title === DEFAULT_CONVERSATION_TITLE;
-
-    if (shouldGenerateTitle) {
-      const titleAgent = createAgent({
-        name: "title-generator",
-        system: TITLE_GENERATOR_SYSTEM_PROMPT,
-        model: openai({
-          model: titleModel,
-          baseUrl: ollamaBaseUrl,
-          apiKey: ollamaApiKey,
-          defaultParameters: { temperature: 0 },
-        }) as any,
-      });
-
-      const { output } = await titleAgent.run(message, { step });
-      const titleMessage = output.find(
-        (m) => m.type === "text" && m.role === "assistant"
-      );
-
-      if (titleMessage?.type === "text") {
-        const title =
-          typeof titleMessage.content === "string"
-            ? titleMessage.content.trim()
-            : titleMessage.content.map((c) => c.text).join("").trim();
-
-        if (title) {
-          await step.run("update-conversation-title", async () => {
-            await convex.mutation(api.system.updateConversationTitle, {
-              internalKey,
-              conversationId,
-              title,
-            });
-          });
-        }
-      }
-    }
+    // Title generation is intentionally disabled for now to keep response path fast.
+    // TODO: move this to a non-blocking/background step after assistant response.
+    // if (shouldGenerateTitle) {
+    //   const titleAgent = createAgent({
+    //     name: "title-generator",
+    //     system: TITLE_GENERATOR_SYSTEM_PROMPT,
+    //     model: openai({
+    //       model: titleModel,
+    //       baseUrl: ollamaBaseUrl,
+    //       apiKey: ollamaApiKey,
+    //       defaultParameters: { temperature: 0 },
+    //     }) as any,
+    //   });
+    //
+    //   const { output } = await titleAgent.run(message, { step });
+    //   const titleMessage = output.find(
+    //     (m) => m.type === "text" && m.role === "assistant"
+    //   );
+    //
+    //   if (titleMessage?.type === "text") {
+    //     const title =
+    //       typeof titleMessage.content === "string"
+    //         ? titleMessage.content.trim()
+    //         : titleMessage.content.map((c) => c.text).join("").trim();
+    //
+    //     if (title) {
+    //       await step.run("update-conversation-title", async () => {
+    //         await convex.mutation(api.system.updateConversationTitle, {
+    //           internalKey,
+    //           conversationId,
+    //           title,
+    //         });
+    //       });
+    //     }
+    //   }
+    // }
 
     const routedIntent = await step.run("route-intent", async () => {
       return await routeIntent({ message });
@@ -232,7 +228,7 @@ export const processMessage = inngest.createFunction(
         baseUrl: ollamaBaseUrl,
         apiKey: ollamaApiKey,
         defaultParameters: { temperature: 0.3 },
-      }) as any,
+      }),
       tools: [
         createListFilesTool({ internalKey, projectId }),
         createReadFilesTool({ internalKey }),

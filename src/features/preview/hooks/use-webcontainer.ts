@@ -1,13 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { WebContainer } from "@webcontainer/api";
+import { Doc } from "../../../../convex/_generated/dataModel";
 
 import { 
   buildFileTree,
   getFilePath
 } from "@/features/preview/utils/file-tree";
-import { useFiles } from "@/features/projects/hooks/use-files";
+import { useFilesWithStorageUrls } from "@/features/projects/hooks/use-files";
 
 import { Id } from "../../../../convex/_generated/dataModel";
+
+type PreviewFile = Doc<"files"> & {
+  storageUrl?: string | null;
+};
 
 type WebContainerState = {
   instance: WebContainer | null;
@@ -73,7 +78,7 @@ interface UseWebContainerProps {
 };
 
 const inferWorkingDirectory = (
-  projectFiles: ReturnType<typeof useFiles>
+  projectFiles: PreviewFile[] | undefined
 ): string => {
   if (!projectFiles || projectFiles.length === 0) {
     return ".";
@@ -110,9 +115,10 @@ export const useWebContainer = ({
 
   const containerRef = useRef<WebContainer | null>(null);
   const hasStartedRef = useRef(false);
+  const binarySyncStateRef = useRef<Map<string, string>>(new Map());
 
   // Fetch files from Convex (auto-updates on changes)
-  const files = useFiles(projectId);
+  const files = useFilesWithStorageUrls(projectId);
 
   // Initial boot and mount
   useEffect(() => {
@@ -134,12 +140,36 @@ export const useWebContainer = ({
 
         const container = await getWebContainer();
         containerRef.current = container;
+        binarySyncStateRef.current = new Map();
 
         const fileTree = buildFileTree(files);
         await container.mount(fileTree);
         appendOutput("[webcontainer] Files mounted.\n");
         const workingDirectory = inferWorkingDirectory(files);
         appendOutput(`[webcontainer] Working directory: ${workingDirectory}\n`);
+
+        const filesMap = new Map(files.map((f) => [f._id, f as Doc<"files">]));
+        const binaryFiles = files.filter(
+          (file): file is PreviewFile =>
+            file.type === "file" && !!file.storageId && !!file.storageUrl
+        );
+
+        if (binaryFiles.length > 0) {
+          appendOutput(
+            `[webcontainer] Syncing ${binaryFiles.length} binary file(s)...\n`
+          );
+        }
+
+        for (const file of binaryFiles) {
+          const filePath = getFilePath(file, filesMap);
+          const response = await fetch(file.storageUrl!);
+          if (!response.ok) {
+            throw new Error(`Failed to fetch binary file: ${file.name}`);
+          }
+          const buffer = new Uint8Array(await response.arrayBuffer());
+          await container.fs.writeFile(filePath, buffer);
+          binarySyncStateRef.current.set(file._id, file.storageId!);
+        }
 
         container.on("server-ready", (port, url) => {
           appendOutput(`\n[server-ready] Port ${port} -> ${url}\n`);
@@ -207,14 +237,41 @@ export const useWebContainer = ({
     const container = containerRef.current;
     if (!container || !files || status !== "running") return;
 
-    const filesMap = new Map(files.map((f) => [f._id, f]));
+    const filesMap = new Map(files.map((f) => [f._id, f as Doc<"files">]));
 
     for (const file of files) {
       if (file.type !== "file" || file.storageId || !file.content) continue;
 
-      const filePath = getFilePath(file, filesMap);
+      const filePath = getFilePath(file as Doc<"files">, filesMap);
       container.fs.writeFile(filePath, file.content);
     }
+  }, [files, status]);
+
+  // Sync binary file changes (or first-write after running)
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || !files || status !== "running") return;
+
+    const filesMap = new Map(files.map((f) => [f._id, f as Doc<"files">]));
+
+    const syncBinaryFiles = async () => {
+      for (const file of files) {
+        if (file.type !== "file" || !file.storageId || !file.storageUrl) continue;
+
+        const lastSyncedStorageId = binarySyncStateRef.current.get(file._id);
+        if (lastSyncedStorageId === file.storageId) continue;
+
+        const filePath = getFilePath(file as Doc<"files">, filesMap);
+        const response = await fetch(file.storageUrl);
+        if (!response.ok) continue;
+
+        const buffer = new Uint8Array(await response.arrayBuffer());
+        await container.fs.writeFile(filePath, buffer);
+        binarySyncStateRef.current.set(file._id, file.storageId);
+      }
+    };
+
+    syncBinaryFiles().catch(() => undefined);
   }, [files, status]);
 
   // Reset when disabled
@@ -235,6 +292,7 @@ export const useWebContainer = ({
     setStatus("idle");
     setPreviewUrl(null);
     setError(null);
+    binarySyncStateRef.current = new Map();
     setRestartKey((k) => k + 1);
   }, []);
 
